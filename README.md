@@ -362,9 +362,32 @@ password = "password-or-api-key-for-confluence-cloud"
 base_url = "http://confluence.local"
 ```
 
+
+
+<details>
+<summary><b>Cookie Authentication</b></summary>
+
+Cookies are **NOT** the recommended way to authenticate. However, if you need to do this, you can pass in a raw string of cookies that are associated with the `baseURL` of your Confluence instance.
+
+In your config file (CLI option is not supported):
+
+```toml
+...
+cookies = "confluence.list.pages.cookie=list-content-tree; _ga=gavaluesomething; confluence.browse.space.cookie=space-templates; mywork.tab.tasks=false; blahblah=blahvalue;"
+...
+```
+
+
+</details>
+
+
+
 **NOTE**: Labels aren't supported when using `minor-edit`!
 
+
 # Tricks
+
+
 
 ## Continuous Integration
 

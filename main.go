@@ -39,7 +39,7 @@ const (
 	version = "6.2"
 	usage   = `mark - a tool for updating Atlassian Confluence pages from markdown.
 
-Docs: https://github.com/kovetskiy/mark
+Docs: https://github.com/btamayo/mark
 
 Usage:
   mark [options] [-u <username>] [-p <token>] [-k] [-l <url>] -f <file>
@@ -114,7 +114,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	api := confluence.NewAPI(creds.BaseURL, creds.Username, creds.Password)
+	api := confluence.NewAPI(creds.BaseURL, creds.Username, creds.Password, config.Cookies)
 
 	files, err := filepath.Glob(flags.FileGlobPatten)
 	if err != nil {

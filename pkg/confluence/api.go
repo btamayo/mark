@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 	"os"
 	"strings"
 
@@ -82,19 +84,54 @@ type tracer struct {
 	prefix string
 }
 
+func parseCookie(rawCookieString string) []*http.Cookie {
+	header := http.Header{}
+	header.Add("Cookie", rawCookieString)
+	request := http.Request{Header: header}
+	return request.Cookies()
+}
+
 func (tracer *tracer) Printf(format string, args ...interface{}) {
 	log.Tracef(nil, tracer.prefix+" "+format, args...)
 }
 
-func NewAPI(baseURL string, username string, password string) *API {
+func NewAPI(baseURL string, username string, password string, cookies string) *API {
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		log.Fatalf(err, "can't parse base url %q", baseURL)
+	}
+
 	auth := &gopencils.BasicAuth{username, password}
 
-	rest := gopencils.Api(baseURL+"/rest/api", auth)
-	json := gopencils.Api(
-		baseURL+"/rpc/json-rpc/confluenceservice-v2",
-		auth,
-	)
+	var rest, json *gopencils.Resource
 
+	if len(cookies) > 0 {
+		log.Info("using cookies from config file, ignoring user/pass")
+
+		hcookies, _ := cookiejar.New(nil)
+
+		co := parseCookie(cookies)
+		hcookies.SetCookies(u, co)
+
+		hclient := &http.Client{
+			Jar: hcookies,
+		}
+
+		// New rest, json Resources (with http client passed in) if there's cookies involved
+		rest = gopencils.Api(baseURL+"/rest/api", hclient)
+		json = gopencils.Api(
+			baseURL+"/rpc/json-rpc/confluenceservice-v2",
+			hclient,
+		)
+	} else {
+
+		// Add the user/pass as default
+		rest = gopencils.Api(baseURL+"/rest/api", auth)
+		json = gopencils.Api(
+			baseURL+"/rpc/json-rpc/confluenceservice-v2",
+			auth,
+		)
+	}
 	if log.GetLevel() == lorg.LevelTrace {
 		rest.Logger = &tracer{"rest:"}
 		json.Logger = &tracer{"json-rpc:"}
