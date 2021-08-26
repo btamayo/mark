@@ -3,10 +3,11 @@ package mark
 import (
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
-	"github.com/kovetskiy/mark/pkg/mark/stdlib"
+	"github.com/btamayo/mark/pkg/mark/stdlib"
 	"github.com/stretchr/testify/assert"
 )
 
