@@ -17,44 +17,124 @@ type ConfluenceRenderer struct {
 	Stdlib *stdlib.Lib
 }
 
-func ParseLanguage(lang string) string {
-	// lang takes the following form: language? "collapse"? ("title"? <any string>*)?
+func splitExceptOnQuotes(s string) []string {
+	a := []string{}
+	sb := &strings.Builder{}
+	quoted := false
+	for _, r := range s {
+		if r == '"' {
+			quoted = !quoted
+			sb.WriteRune(r) // keep '"' otherwise comment this line
+		} else if !quoted && r == ' ' {
+			a = append(a, sb.String())
+			sb.Reset()
+		} else {
+			sb.WriteRune(r)
+		}
+	}
+	if sb.Len() > 0 {
+		a = append(a, sb.String())
+	}
+
+	return a
+}
+
+// ParseLanguage will parse the info string (https://github.github.com/gfm/#info-string)
+// and return the language (the first word)
+func ParseLanguage(info string) string {
+	// info takes the following form: language? [collapse] [title="<any string>"]?
 	// let's split it by spaces
-	paramlist := strings.Fields(lang)
+	paramlist := strings.Fields(info)
 
 	// get the word in question, aka the first one
-	first := lang
+	first := info
 	if len(paramlist) > 0 {
 		first = paramlist[0]
 	}
 
-	if first == "collapse" || first == "title" {
+	if first == "collapse" || strings.HasPrefix(first, "title=") || strings.HasPrefix(first, "theme=") {
 		// collapsing or including a title without a language
 		return ""
 	}
+
 	// the default case with language being the first one
 	return first
 }
 
-func ParseTitle(lang string) string {
-	index := strings.Index(lang, "title")
-	if index >= 0 {
-		// it's found, check if title is given and return it
-		start := index + 6
-		if len(lang) > start {
-			return lang[start:]
+func ParseTheme(info string) string {
+	// let's split it by spaces
+	paramlist := splitExceptOnQuotes(info)
+	var title string
+
+	// find something that starts with title=
+	for _, param := range paramlist {
+		log.Infof(nil, "Checking theme: %s", param)
+
+		if strings.HasPrefix(param, "theme") {
+			if strings.HasPrefix(param, "theme=") {
+				// drop the title=
+				title = strings.TrimPrefix(param, "theme=")
+
+				// Get rid of quotes and trim whitespace
+				title = title[1 : len(title)-1]
+				title = strings.TrimSpace(title)
+
+				log.Info("Found theme: %s", param)
+				return title
+			} else {
+				// Be nice to the developer
+				log.Debugf(karma.Describe("info", info), "Found string `theme` in info, but not in the correct format, set theme for a code block using: theme=\"Eclipse\". See https://confluence.atlassian.com/doc/code-block-macro-139390.html")
+			}
+		}
+
+	}
+
+	return ""
+}
+
+func ParseTitle(info string) string {
+	// let's split it by spaces
+	paramlist := splitExceptOnQuotes(info)
+	var title string
+
+	// find something that starts with title=
+	for _, param := range paramlist {
+		log.Infof(nil, "Checking title: %s", param)
+
+		if strings.HasPrefix(param, "title") {
+			if strings.HasPrefix(param, "title=") {
+				// drop the title=
+				title = strings.TrimPrefix(param, "title=")
+
+				// Get rid of quotes and trim whitespace
+				title = title[1 : len(title)-1]
+				title = strings.TrimSpace(title)
+
+				log.Infof(nil, "Found title: %s", title)
+				return title
+			} else {
+				// Be nice to the developer
+				log.Debugf(karma.Describe("info", info), "Found string `title` in info, but not in the correct format, set title for a code block using: title=\"My Title Here\"")
+			}
 		}
 	}
+
 	return ""
 }
 
 func (renderer ConfluenceRenderer) RenderNode(
 	writer io.Writer,
-	node *bf.Node,
+	node *bf.Node, // Markdown node
 	entering bool,
 ) bf.WalkStatus {
+	// If it's a codeblock, parse the "info" string: https://github.github.com/gfm/#info-string
 	if node.Type == bf.CodeBlock {
-		lang := string(node.Info)
+		infoString := string(node.Info)
+		curr := karma.Describe("RenderNode", infoString)
+		log.Tracef(curr, "RenderNode")
+
+		// https://stackoverflow.com/questions/36209677/how-can-i-conditionally-set-a-variable-in-a-go-template-based-on-an-expression-w
+		// ^^^ way too much work to avoid some inelegant code
 
 		renderer.Stdlib.Templates.ExecuteTemplate(
 			writer,
@@ -62,12 +142,16 @@ func (renderer ConfluenceRenderer) RenderNode(
 			struct {
 				Language string
 				Collapse bool
+				Theme    string
 				Title    string
 				Text     string
 			}{
-				ParseLanguage(lang),
-				strings.Contains(lang, "collapse"),
-				ParseTitle(lang),
+				// todo(btamayo): note – currently, this is done by passing any info string to an extractor
+				//       		  maybe we can optimize later to parse the string once?
+				ParseLanguage(infoString),
+				strings.Contains(infoString, "collapse"),
+				ParseTheme(infoString),
+				ParseTitle(infoString),
 				strings.TrimSuffix(string(node.Literal), "\n"),
 			},
 		)
@@ -84,7 +168,7 @@ func CompileMarkdown(
 	markdown []byte,
 	stdlib *stdlib.Lib,
 ) string {
-	log.Tracef(nil, "rendering markdown:\n%s", string(markdown))
+	// log.Tracef(nil, "rendering markdown:\n%s", string(markdown))
 
 	colon := regexp.MustCompile(`---bf-COLON---`)
 

@@ -58,28 +58,29 @@ func LoadTemplate(
 	return templates, nil
 }
 
+func vardump(
+	facts *karma.Context,
+	data map[string]interface{},
+) *karma.Context {
+	for key, value := range data {
+		key = "var " + key
+		facts = facts.Describe(
+			key,
+			strings.ReplaceAll(
+				fmt.Sprint(value),
+				"\n",
+				"\n"+strings.Repeat(" ", len(key)+2),
+			),
+		)
+	}
+
+	return facts
+}
+
 func ProcessIncludes(
 	contents []byte,
 	templates *template.Template,
 ) (*template.Template, []byte, bool, error) {
-	vardump := func(
-		facts *karma.Context,
-		data map[string]interface{},
-	) *karma.Context {
-		for key, value := range data {
-			key = "var " + key
-			facts = facts.Describe(
-				key,
-				strings.ReplaceAll(
-					fmt.Sprint(value),
-					"\n",
-					"\n"+strings.Repeat(" ", len(key)+2),
-				),
-			)
-		}
-
-		return facts
-	}
 
 	var (
 		recurse bool

@@ -104,15 +104,18 @@ func templates(api *confluence.API) (*template.Template, error) {
 		),
 
 		// This template is used for rendering code in ```
+		// https://confluence.atlassian.com/doc/code-block-macro-139390.html
 		`ac:code`: text(
 			`{{ if .Collapse }}<ac:structured-macro ac:name="expand">{{printf "\n"}}`,
-			`{{ if .Title }}<ac:parameter ac:name="title">{{ .Title }}</ac:parameter>{{printf "\n"}}{{ end }}`,
+			`	{{ if .Title }}<ac:parameter ac:name="title">{{ .Title }}</ac:parameter>{{printf "\n"}}{{ end }}`,
+			`	{{ if .Theme }}<ac:parameter ac:name="theme">{{ .Theme }}</ac:parameter>{{printf "\n"}}{{ end }}`,
 			`<ac:rich-text-body>{{printf "\n"}}{{ end }}`,
 
 			`<ac:structured-macro ac:name="code">{{printf "\n"}}`,
-			/**/ `<ac:parameter ac:name="language">{{ .Language }}</ac:parameter>{{printf "\n"}}`,
-			/**/ `<ac:parameter ac:name="collapse">{{ .Collapse }}</ac:parameter>{{printf "\n"}}`,
-			/**/ `{{ if .Title }}<ac:parameter ac:name="title">{{ .Title }}</ac:parameter>{{printf "\n"}}{{ end }}`,
+			/**/ `	<ac:parameter ac:name="language">{{ .Language }}</ac:parameter>{{printf "\n"}}`,
+			/**/ `	<ac:parameter ac:name="collapse">{{ .Collapse }}</ac:parameter>{{printf "\n"}}`,
+			/**/ `	<ac:parameter ac:name="theme">{{ .Theme }}</ac:parameter>{{printf "\n"}}`,
+			/**/ `	{{ if .Title }}<ac:parameter ac:name="title">{{ .Title }}</ac:parameter>{{printf "\n"}}{{ end }}`,
 			/**/ `<ac:plain-text-body><![CDATA[{{ .Text | cdata }}]]></ac:plain-text-body>{{printf "\n"}}`,
 			`</ac:structured-macro>{{printf "\n"}}`,
 
